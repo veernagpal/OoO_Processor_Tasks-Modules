@@ -1,3 +1,222 @@
+//WIRING THE MODULES OF THE ISSUE STAGE
+module Decode_Rename_Stage(
+    input  clk, rst,
+    input  [31:0] ins0_F, ins1_F, ins2_F, ins3_F,
+    input  [2:0]  write_count,
+    input         rob_free_valid,
+    input  [6:0]  rob_free_preg,
+    output [6:0]  prs1_0, prs1_1, prs1_2, prs1_3,
+    output [6:0]  prs2_0, prs2_1, prs2_2, prs2_3,
+    output [6:0]  prd_0,  prd_1,  prd_2,  prd_3,
+    output [6:0]  old_prd_0, old_prd_1, old_prd_2, old_prd_3,
+    output [31:0] imm_out_0, imm_out_1, imm_out_2, imm_out_3,
+    output [6:0]  func7_out_0, func7_out_1, func7_out_2, func7_out_3,
+    output [2:0]  func3_out_0, func3_out_1, func3_out_2, func3_out_3,
+    output [6:0]  opcode_out_0, opcode_out_1, opcode_out_2, opcode_out_3,
+    output [3:0]  has_dest_out, is_branch_out, is_jump_out,
+                  is_jalr_out, is_load_out, is_store_out,
+    output [3:0]  valid_out,
+    output        stall
+);
+
+    wire [31:0] ins0_D, ins1_D, ins2_D, ins3_D;
+    wire [3:0]  valid_D;
+
+    wire [6:0]  opcode_0, opcode_1, opcode_2, opcode_3;
+    wire [4:0]  rs1_0, rs1_1, rs1_2, rs1_3;
+    wire [4:0]  rs2_0, rs2_1, rs2_2, rs2_3;
+    wire [4:0]  rd_0,  rd_1,  rd_2,  rd_3;
+    wire [31:0] imm_0, imm_1, imm_2, imm_3;
+    wire [6:0]  func7_0, func7_1, func7_2, func7_3;
+    wire [2:0]  func3_0, func3_1, func3_2, func3_3;
+    wire [3:0]  has_dest, is_branch, is_jump, is_jalr, is_load, is_store;
+    wire [3:0]  valid_dec;
+
+    wire [4:0]  rat_rs1_0, rat_rs1_1, rat_rs1_2, rat_rs1_3;
+    wire [4:0]  rat_rs2_0, rat_rs2_1, rat_rs2_2, rat_rs2_3;
+    wire [4:0]  rat_rd_0,  rat_rd_1,  rat_rd_2,  rat_rd_3;
+    wire [6:0]  rat_prs1_0, rat_prs1_1, rat_prs1_2, rat_prs1_3;
+    wire [6:0]  rat_prs2_0, rat_prs2_1, rat_prs2_2, rat_prs2_3;
+    wire [6:0]  rat_old_prd_0, rat_old_prd_1, rat_old_prd_2, rat_old_prd_3;
+    wire [3:0]  rat_update_valid;
+    wire [4:0]  rat_new_rd_0, rat_new_rd_1, rat_new_rd_2, rat_new_rd_3;
+    wire [6:0]  rat_new_prd_0, rat_new_prd_1, rat_new_prd_2, rat_new_prd_3;
+
+    wire [3:0]  fl_alloc_req;
+    wire [6:0]  fl_alloc_preg_0, fl_alloc_preg_1, fl_alloc_preg_2, fl_alloc_preg_3;
+    wire        fl_stall;
+
+    IF_ID if_id(
+        .clk(clk), .rst(rst),
+        .ins0_out_F(ins0_F), .ins1_out_F(ins1_F),
+        .ins2_out_F(ins2_F), .ins3_out_F(ins3_F),
+        .write_count(write_count),
+        .ins0_out_D(ins0_D), .ins1_out_D(ins1_D),
+        .ins2_out_D(ins2_D), .ins3_out_D(ins3_D),
+        .valid_out_D(valid_D)
+    );
+
+    Decode decode(
+        .ins_0(ins0_D), .ins_1(ins1_D), .ins_2(ins2_D), .ins_3(ins3_D),
+        .valid_in(valid_D),
+        .opcode_0(opcode_0), .opcode_1(opcode_1), .opcode_2(opcode_2), .opcode_3(opcode_3),
+        .rs1_0(rs1_0), .rs1_1(rs1_1), .rs1_2(rs1_2), .rs1_3(rs1_3),
+        .rs2_0(rs2_0), .rs2_1(rs2_1), .rs2_2(rs2_2), .rs2_3(rs2_3),
+        .rd_0(rd_0),   .rd_1(rd_1),   .rd_2(rd_2),   .rd_3(rd_3),
+        .imm_0(imm_0), .imm_1(imm_1), .imm_2(imm_2), .imm_3(imm_3),
+        .func7_0(func7_0), .func7_1(func7_1), .func7_2(func7_2), .func7_3(func7_3),
+        .func3_0(func3_0), .func3_1(func3_1), .func3_2(func3_2), .func3_3(func3_3),
+        .has_dest(has_dest), .is_branch(is_branch), .is_jump(is_jump),
+        .is_jalr(is_jalr),   .is_load(is_load),     .is_store(is_store),
+        .valid_out(valid_dec)
+    );
+
+    RAT rat(
+        .clk(clk), .rst(rst),
+        .rs1_0(rat_rs1_0), .rs1_1(rat_rs1_1), .rs1_2(rat_rs1_2), .rs1_3(rat_rs1_3),
+        .rs2_0(rat_rs2_0), .rs2_1(rat_rs2_1), .rs2_2(rat_rs2_2), .rs2_3(rat_rs2_3),
+        .rd_0(rat_rd_0),   .rd_1(rat_rd_1),   .rd_2(rat_rd_2),   .rd_3(rat_rd_3),
+        .update_valid(rat_update_valid),
+        .new_rd_0(rat_new_rd_0), .new_rd_1(rat_new_rd_1),
+        .new_rd_2(rat_new_rd_2), .new_rd_3(rat_new_rd_3),
+        .new_prd_0(rat_new_prd_0), .new_prd_1(rat_new_prd_1),
+        .new_prd_2(rat_new_prd_2), .new_prd_3(rat_new_prd_3),
+        .prs1_0(rat_prs1_0), .prs1_1(rat_prs1_1), .prs1_2(rat_prs1_2), .prs1_3(rat_prs1_3),
+        .prs2_0(rat_prs2_0), .prs2_1(rat_prs2_1), .prs2_2(rat_prs2_2), .prs2_3(rat_prs2_3),
+        .old_prd_0(rat_old_prd_0), .old_prd_1(rat_old_prd_1),
+        .old_prd_2(rat_old_prd_2), .old_prd_3(rat_old_prd_3)
+    );
+
+    Free_List free_list(
+        .clk(clk), .rst(rst),
+        .alloc_req(fl_alloc_req),
+        .alloc_preg_0(fl_alloc_preg_0), .alloc_preg_1(fl_alloc_preg_1),
+        .alloc_preg_2(fl_alloc_preg_2), .alloc_preg_3(fl_alloc_preg_3),
+        .stall(fl_stall),
+        .rob_free_valid(rob_free_valid),
+        .rob_free_preg(rob_free_preg)
+    );
+
+    Rename_Dispatch rename_dispatch(
+        .clk(clk), .rst(rst),
+        .rs1_0(rs1_0), .rs1_1(rs1_1), .rs1_2(rs1_2), .rs1_3(rs1_3),
+        .rs2_0(rs2_0), .rs2_1(rs2_1), .rs2_2(rs2_2), .rs2_3(rs2_3),
+        .rd_0(rd_0),   .rd_1(rd_1),   .rd_2(rd_2),   .rd_3(rd_3),
+        .imm_0(imm_0), .imm_1(imm_1), .imm_2(imm_2), .imm_3(imm_3),
+        .func7_0(func7_0), .func7_1(func7_1), .func7_2(func7_2), .func7_3(func7_3),
+        .func3_0(func3_0), .func3_1(func3_1), .func3_2(func3_2), .func3_3(func3_3),
+        .opcode_0(opcode_0), .opcode_1(opcode_1), .opcode_2(opcode_2), .opcode_3(opcode_3),
+        .has_dest(has_dest), .is_branch(is_branch), .is_jump(is_jump),
+        .is_jalr(is_jalr),   .is_load(is_load),     .is_store(is_store),
+        .valid_in(valid_dec),
+        .rat_rs1_0(rat_rs1_0), .rat_rs1_1(rat_rs1_1), .rat_rs1_2(rat_rs1_2), .rat_rs1_3(rat_rs1_3),
+        .rat_rs2_0(rat_rs2_0), .rat_rs2_1(rat_rs2_1), .rat_rs2_2(rat_rs2_2), .rat_rs2_3(rat_rs2_3),
+        .rat_rd_0(rat_rd_0),   .rat_rd_1(rat_rd_1),   .rat_rd_2(rat_rd_2),   .rat_rd_3(rat_rd_3),
+        .rat_prs1_0(rat_prs1_0), .rat_prs1_1(rat_prs1_1), .rat_prs1_2(rat_prs1_2), .rat_prs1_3(rat_prs1_3),
+        .rat_prs2_0(rat_prs2_0), .rat_prs2_1(rat_prs2_1), .rat_prs2_2(rat_prs2_2), .rat_prs2_3(rat_prs2_3),
+        .rat_old_prd_0(rat_old_prd_0), .rat_old_prd_1(rat_old_prd_1),
+        .rat_old_prd_2(rat_old_prd_2), .rat_old_prd_3(rat_old_prd_3),
+        .rat_update_valid(rat_update_valid),
+        .rat_new_rd_0(rat_new_rd_0), .rat_new_rd_1(rat_new_rd_1),
+        .rat_new_rd_2(rat_new_rd_2), .rat_new_rd_3(rat_new_rd_3),
+        .rat_new_prd_0(rat_new_prd_0), .rat_new_prd_1(rat_new_prd_1),
+        .rat_new_prd_2(rat_new_prd_2), .rat_new_prd_3(rat_new_prd_3),
+        .fl_alloc_req(fl_alloc_req),
+        .fl_alloc_preg_0(fl_alloc_preg_0), .fl_alloc_preg_1(fl_alloc_preg_1),
+        .fl_alloc_preg_2(fl_alloc_preg_2), .fl_alloc_preg_3(fl_alloc_preg_3),
+        .fl_stall(fl_stall),
+        .prs1_0(prs1_0), .prs1_1(prs1_1), .prs1_2(prs1_2), .prs1_3(prs1_3),
+        .prs2_0(prs2_0), .prs2_1(prs2_1), .prs2_2(prs2_2), .prs2_3(prs2_3),
+        .prd_0(prd_0),   .prd_1(prd_1),   .prd_2(prd_2),   .prd_3(prd_3),
+        .old_prd_0(old_prd_0), .old_prd_1(old_prd_1),
+        .old_prd_2(old_prd_2), .old_prd_3(old_prd_3),
+        .imm_out_0(imm_out_0), .imm_out_1(imm_out_1), .imm_out_2(imm_out_2), .imm_out_3(imm_out_3),
+        .func7_out_0(func7_out_0), .func7_out_1(func7_out_1),
+        .func7_out_2(func7_out_2), .func7_out_3(func7_out_3),
+        .func3_out_0(func3_out_0), .func3_out_1(func3_out_1),
+        .func3_out_2(func3_out_2), .func3_out_3(func3_out_3),
+        .opcode_out_0(opcode_out_0), .opcode_out_1(opcode_out_1),
+        .opcode_out_2(opcode_out_2), .opcode_out_3(opcode_out_3),
+        .has_dest_out(has_dest_out),   .is_branch_out(is_branch_out),
+        .is_jump_out(is_jump_out),     .is_jalr_out(is_jalr_out),
+        .is_load_out(is_load_out),     .is_store_out(is_store_out),
+        .valid_out(valid_out),
+        .stall(stall)
+    );
+
+endmodule
+
+
+`timescale 1ns/1ps
+
+module tb_Decode_Rename_Stage;
+
+    reg clk, rst;
+    reg [31:0] ins0_F, ins1_F, ins2_F, ins3_F;
+    reg [2:0]  write_count;
+    reg        rob_free_valid;
+    reg [6:0]  rob_free_preg;
+
+    wire [6:0] prs1_0, prs1_1, prs1_2, prs1_3;
+    wire [6:0] prs2_0, prs2_1, prs2_2, prs2_3;
+    wire [6:0] prd_0,  prd_1,  prd_2,  prd_3;
+    wire [6:0] old_prd_0, old_prd_1, old_prd_2, old_prd_3;
+    wire [3:0] valid_out;
+    wire       stall;
+
+    Decode_Rename_Stage dut(
+        .clk(clk), .rst(rst),
+        .ins0_F(ins0_F), .ins1_F(ins1_F), .ins2_F(ins2_F), .ins3_F(ins3_F),
+        .write_count(write_count),
+        .rob_free_valid(rob_free_valid), .rob_free_preg(rob_free_preg),
+        .prs1_0(prs1_0), .prs1_1(prs1_1), .prs1_2(prs1_2), .prs1_3(prs1_3),
+        .prs2_0(prs2_0), .prs2_1(prs2_1), .prs2_2(prs2_2), .prs2_3(prs2_3),
+        .prd_0(prd_0),   .prd_1(prd_1),   .prd_2(prd_2),   .prd_3(prd_3),
+        .old_prd_0(old_prd_0), .old_prd_1(old_prd_1),
+        .old_prd_2(old_prd_2), .old_prd_3(old_prd_3),
+        .valid_out(valid_out), .stall(stall)
+    );
+
+    always #5 clk = ~clk;
+
+    initial begin
+        $dumpfile("tb_decode_rename.vcd");
+        $dumpvars(0, tb_Decode_Rename_Stage);
+    end
+
+    initial begin
+        clk            = 0;
+        rst            = 0;
+        rob_free_valid = 0;
+        rob_free_preg  = 0;
+
+        // BUNDLE 1 on inputs before reset releases
+        ins0_F      = 32'h003100B3; // ADD  x1,x2,x3
+        ins1_F      = 32'h00508233; // ADD  x4,x1,x5
+        ins2_F      = 32'h00A08093; // ADDI x1,x1,10
+        ins3_F      = 32'h00120333; // ADD  x6,x4,x1
+        write_count = 3'd4;
+
+        #8;  rst = 1; 
+
+        #12;         
+        ins0_F      = 32'h00408133; // ADD  x2,x1,x4
+        ins1_F      = 32'h00012283; // LW   x5,0(x2)
+        ins2_F      = 32'h006280B3; // ADD  x1,x5,x6
+        ins3_F      = 32'h00112223; // SW   x1,4(x2)
+        write_count = 3'd4;
+
+
+        #15;          
+        ins0_F = 0; ins1_F = 0; ins2_F = 0; ins3_F = 0;
+        write_count = 3'd0;
+                      
+
+        #30; $finish;
+    end
+
+endmodule
+
 module IF_ID(clk,rst,ins0_out_F,ins1_out_F,ins2_out_F,ins3_out_F,write_count,ins0_out_D,ins1_out_D,ins2_out_D,ins3_out_D,valid_out_D);
 
 input clk,rst;
@@ -505,7 +724,7 @@ assign fl_alloc_req[3] = valid_in[3] && has_dest[3] && (rd_3 != 5'd0);
 
 always@(*)begin
     stall           = fl_stall;
-    rat_update_valid = fl_alloc_req;
+    rat_update_valid = valid_in;
 end
 
 always@(posedge clk, negedge rst)begin
