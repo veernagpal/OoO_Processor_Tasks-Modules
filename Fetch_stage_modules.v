@@ -52,77 +52,7 @@ endmodule
 
 
 
-`timescale 1ns/1ps
 
-module tb_Fetch_Stage;
-
-    reg        clk, reset;
-    reg        read_en;
-    reg [2:0]  read_count;
-
-    wire [31:0] out0, out1, out2, out3;
-    wire [2:0]  write_count;
-
-    // tap internal signals for waveform visibility
-    wire [63:0] current_pc;
-    wire [31:0] imem_out0, imem_out1, imem_out2, imem_out3;
-    wire [31:0] next_pc_32;
-
-    Fetch_Stage dut(
-        .clk(clk), .reset(reset),
-        .read_en(read_en), .read_count(read_count),
-        .out0(out0), .out1(out1), .out2(out2), .out3(out3),
-        .write_count(write_count)
-    );
-
-    assign current_pc  = dut.current_pc;
-    assign imem_out0   = dut.imem_out0;
-    assign imem_out1   = dut.imem_out1;
-    assign imem_out2   = dut.imem_out2;
-    assign imem_out3   = dut.imem_out3;
-    assign next_pc_32  = dut.next_pc_32;
-
-    always #5 clk = ~clk;
-
-    initial begin
-        $dumpfile("tb_fetch_stage.vcd");
-        $dumpvars(0, tb_Fetch_Stage);
-    end
-
-    initial begin
-        clk        = 0;
-        reset      = 1;
-        read_en    = 0;
-        read_count = 0;
-
-        // hold reset for 2 cycles so PC and FIFO are cleanly initialised
-        #20; reset = 0;
-
-        // let fetch run for 4 cycles — populates the FIFO with 3+4+2+4=13 instructions
-        #40;
-
-        // READ 1: read 3 instructions (bundle from PC=0, stops at BEQ)
-        // expect: out0=0x33(ADD), out1=0x13(ADDI), out2=0xC63(BEQ)
-        read_en    = 1;
-        read_count = 3'd3;
-        #10;
-        read_en = 0;
-
-        // wait 2 cycles (more fetches keep happening)
-        #20;
-
-        // READ 2: read 4 instructions (bundle from PC=32, no branch)
-        // expect: out0=0x33(ADD), out1=0x13(ADDI), out2=0x13(ADDI), out3=0x33(ADD)
-        read_en    = 1;
-        read_count = 3'd4;
-        #10;
-        read_en = 0;
-
-        #40;
-        $finish;
-    end
-
-endmodule
 
 
 module PC(clk, next_pc, current_pc, reset);
@@ -338,4 +268,77 @@ module predecode(
             inst_out0 = ins0; inst_out1 = ins1; inst_out2 = ins2; inst_out3 = ins3;
         end
     end
+endmodule
+
+
+`timescale 1ns/1ps
+
+module tb_Fetch_Stage;
+
+    reg        clk, reset;
+    reg        read_en;
+    reg [2:0]  read_count;
+
+    wire [31:0] out0, out1, out2, out3;
+    wire [2:0]  write_count;
+
+    // tap internal signals for waveform visibility
+    wire [63:0] current_pc;
+    wire [31:0] imem_out0, imem_out1, imem_out2, imem_out3;
+    wire [31:0] next_pc_32;
+
+    Fetch_Stage dut(
+        .clk(clk), .reset(reset),
+        .read_en(read_en), .read_count(read_count),
+        .out0(out0), .out1(out1), .out2(out2), .out3(out3),
+        .write_count(write_count)
+    );
+
+    assign current_pc  = dut.current_pc;
+    assign imem_out0   = dut.imem_out0;
+    assign imem_out1   = dut.imem_out1;
+    assign imem_out2   = dut.imem_out2;
+    assign imem_out3   = dut.imem_out3;
+    assign next_pc_32  = dut.next_pc_32;
+
+    always #5 clk = ~clk;
+
+    initial begin
+        $dumpfile("tb_fetch_stage.vcd");
+        $dumpvars(0, tb_Fetch_Stage);
+    end
+
+    initial begin
+        clk        = 0;
+        reset      = 1;
+        read_en    = 0;
+        read_count = 0;
+
+        // hold reset for 2 cycles so PC and FIFO are cleanly initialised
+        #20; reset = 0;
+
+        // let fetch run for 4 cycles — populates the FIFO with 3+4+2+4=13 instructions
+        #40;
+
+        // READ 1: read 3 instructions (bundle from PC=0, stops at BEQ)
+        // expect: out0=0x33(ADD), out1=0x13(ADDI), out2=0xC63(BEQ)
+        read_en    = 1;
+        read_count = 3'd3;
+        #10;
+        read_en = 0;
+
+        // wait 2 cycles (more fetches keep happening)
+        #20;
+
+        // READ 2: read 4 instructions (bundle from PC=32, no branch)
+        // expect: out0=0x33(ADD), out1=0x13(ADDI), out2=0x13(ADDI), out3=0x33(ADD)
+        read_en    = 1;
+        read_count = 3'd4;
+        #10;
+        read_en = 0;
+
+        #40;
+        $finish;
+    end
+
 endmodule
